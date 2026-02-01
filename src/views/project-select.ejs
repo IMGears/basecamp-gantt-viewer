@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Select Project - Basecamp Gantt Viewer</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 30px;
+    }
+
+    .project-card {
+      background: white;
+      border-radius: 8px;
+      padding: 25px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      color: inherit;
+      display: block;
+    }
+
+    .project-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .project-card h3 {
+      color: #2c3e50;
+      margin-bottom: 10px;
+      font-size: 1.2rem;
+    }
+
+    .project-card p {
+      color: #666;
+      font-size: 0.9rem;
+      margin: 0;
+    }
+
+    .project-card .project-meta {
+      margin-top: 15px;
+      padding-top: 15px;
+      border-top: 1px solid #eee;
+      font-size: 0.85rem;
+      color: #999;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      text-align: left;
+      padding: 20px 0;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+    }
+
+    .page-description {
+      color: #666;
+      margin-bottom: 10px;
+    }
+
+    .error-message {
+      background: #fee;
+      border: 1px solid #fcc;
+      color: #c00;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+
+    .no-projects {
+      text-align: center;
+      padding: 60px;
+      color: #666;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Select a Project</h1>
+        <p class="page-description">Choose a project to view its tasks as a Gantt chart</p>
+      </div>
+      <nav>
+        <a href="/dashboard" class="btn">Dashboard</a>
+        <a href="/auth/logout" class="btn">Logout</a>
+      </nav>
+    </header>
+
+    <% if (error) { %>
+      <div class="error-message"><%= error %></div>
+    <% } %>
+
+    <% if (projects.length === 0) { %>
+      <div class="no-projects">
+        <p>No projects found in your Basecamp account.</p>
+      </div>
+    <% } else { %>
+      <div class="projects-grid">
+        <% projects.forEach(project => { %>
+          <a href="/gantt/view?accountId=<%= accountId %>&projectId=<%= project.id %>" class="project-card">
+            <h3><%= project.name %></h3>
+            <% if (project.description) { %>
+              <p><%= project.description.substring(0, 100) %><%= project.description.length > 100 ? '...' : '' %></p>
+            <% } %>
+            <div class="project-meta">
+              <% if (project.purpose) { %>
+                <%= project.purpose %>
+              <% } %>
+            </div>
+          </a>
+        <% }); %>
+      </div>
+    <% } %>
+  </div>
+</body>
+</html>

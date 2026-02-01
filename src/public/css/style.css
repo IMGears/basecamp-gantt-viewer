@@ -97,3 +97,37 @@ header nav span {
 .card p {
   font-size: 1rem;
 }
+
+/* Account list */
+.account-list {
+  list-style: none;
+  margin: 15px 0;
+  text-align: left;
+}
+
+.account-list li {
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.account-list li:last-child {
+  border-bottom: none;
+}
+
+.account-list a {
+  color: #3498db;
+  text-decoration: none;
+}
+
+.account-list a:hover {
+  text-decoration: underline;
+}
+
+/* Gantt chart completed tasks */
+.bar-completed .bar {
+  fill: #27ae60 !important;
+}
+
+.bar-completed .bar-progress {
+  fill: #1e8449 !important;
+}

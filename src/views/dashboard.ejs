@@ -23,9 +23,17 @@
       </div>
 
       <div class="card">
-        <h2>Connect Basecamp</h2>
+        <h2>Basecamp</h2>
         <% if (user.basecampAccessToken) { %>
-          <p>Basecamp is connected!</p>
+          <p>Basecamp connected!</p>
+          <% if (user.basecampAccounts && user.basecampAccounts.length > 0) { %>
+            <p>Accounts:</p>
+            <ul class="account-list">
+              <% user.basecampAccounts.forEach(account => { %>
+                <li><a href="/gantt?accountId=<%= account.id %>"><%= account.name %></a></li>
+              <% }); %>
+            </ul>
+          <% } %>
           <a href="/gantt" class="btn btn-primary">View Gantt Chart</a>
         <% } else { %>
           <p>Connect your Basecamp account to view tasks as a Gantt chart.</p>

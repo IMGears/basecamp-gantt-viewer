@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= projectName %> - Gantt Chart</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.min.css">
+  <style>
+    .gantt-container {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      overflow-x: auto;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .view-modes {
+      display: flex;
+      gap: 5px;
+    }
+
+    .view-modes button {
+      padding: 8px 16px;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .view-modes button:hover {
+      background: #f5f5f5;
+    }
+
+    .view-modes button.active {
+      background: #3498db;
+      color: white;
+      border-color: #3498db;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 60px;
+      color: #666;
+    }
+
+    .loading-spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 20px;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .error-message {
+      background: #fee;
+      border: 1px solid #fcc;
+      color: #c00;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+
+    .no-tasks {
+      text-align: center;
+      padding: 60px;
+      color: #666;
+    }
+
+    .stats {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .stat {
+      background: white;
+      padding: 15px 25px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+
+    .stat-label {
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    /* Gantt chart customizations */
+    .gantt .bar-label {
+      font-size: 12px;
+    }
+
+    .gantt .bar {
+      cursor: pointer;
+    }
+
+    .task-popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      z-index: 1000;
+      max-width: 500px;
+      width: 90%;
+    }
+
+    .task-popup h3 {
+      margin-bottom: 15px;
+      color: #2c3e50;
+    }
+
+    .task-popup p {
+      margin-bottom: 10px;
+      font-size: 0.95rem;
+    }
+
+    .task-popup .label {
+      font-weight: bold;
+      color: #666;
+    }
+
+    .popup-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 999;
+    }
+
+    .popup-close {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      cursor: pointer;
+      color: #999;
+    }
+
+    .popup-close:hover {
+      color: #333;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      text-align: left;
+      padding: 20px 0;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+    }
+
+    .header-subtitle {
+      color: #666;
+      font-size: 0.9rem;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1><%= projectName %></h1>
+        <p class="header-subtitle">Gantt Chart View</p>
+      </div>
+      <nav>
+        <a href="/gantt" class="btn">Change Project</a>
+        <a href="/dashboard" class="btn">Dashboard</a>
+        <a href="/auth/logout" class="btn">Logout</a>
+      </nav>
+    </header>
+
+    <% if (error) { %>
+      <div class="error-message"><%= error %></div>
+    <% } %>
+
+    <div class="controls">
+      <div class="view-modes">
+        <button data-mode="Day">Day</button>
+        <button data-mode="Week" class="active">Week</button>
+        <button data-mode="Month">Month</button>
+      </div>
+    </div>
+
+    <div class="stats" id="stats" style="display: none;">
+      <div class="stat">
+        <div class="stat-value" id="totalTasks">0</div>
+        <div class="stat-label">Total Tasks</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="completedTasks">0</div>
+        <div class="stat-label">Completed</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="listCount">0</div>
+        <div class="stat-label">Lists</div>
+      </div>
+    </div>
+
+    <div class="gantt-container">
+      <div id="loading" class="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading tasks from Basecamp...</p>
+      </div>
+      <div id="noTasks" class="no-tasks" style="display: none;">
+        <p>No tasks with dates found.</p>
+        <p>Tasks need a start date or due date to appear on the Gantt chart.</p>
+      </div>
+      <svg id="gantt"></svg>
+    </div>
+  </div>
+
+  <!-- Task popup -->
+  <div id="popupOverlay" class="popup-overlay" style="display: none;"></div>
+  <div id="taskPopup" class="task-popup" style="display: none;">
+    <button class="popup-close" onclick="closePopup()">&times;</button>
+    <h3 id="popupTitle"></h3>
+    <p><span class="label">List:</span> <span id="popupList"></span></p>
+    <p><span class="label">Start:</span> <span id="popupStart"></span></p>
+    <p><span class="label">End:</span> <span id="popupEnd"></span></p>
+    <p><span class="label">Status:</span> <span id="popupStatus"></span></p>
+    <p><span class="label">Assignees:</span> <span id="popupAssignees"></span></p>
+    <a id="popupLink" href="#" target="_blank" class="btn btn-primary" style="margin-top: 15px;">Open in Basecamp</a>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.min.js"></script>
+  <script>
+    let gantt = null;
+    let tasksData = [];
+    const accountId = '<%= accountId %>';
+    const projectId = '<%= projectId %>';
+
+    // Fetch and render tasks
+    async function loadTasks() {
+      const loading = document.getElementById('loading');
+      const noTasks = document.getElementById('noTasks');
+      const ganttEl = document.getElementById('gantt');
+      const stats = document.getElementById('stats');
+
+      loading.style.display = 'block';
+      noTasks.style.display = 'none';
+      ganttEl.innerHTML = '';
+      stats.style.display = 'none';
+
+      try {
+        const response = await fetch(`/gantt/api/tasks/${accountId}/${projectId}`);
+        const data = await response.json();
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        loading.style.display = 'none';
+        tasksData = data.tasks;
+
+        if (tasksData.length === 0) {
+          noTasks.style.display = 'block';
+          return;
+        }
+
+        // Update stats
+        const lists = [...new Set(tasksData.map(t => t.list))];
+        const completed = tasksData.filter(t => t.completed).length;
+
+        document.getElementById('totalTasks').textContent = tasksData.length;
+        document.getElementById('completedTasks').textContent = completed;
+        document.getElementById('listCount').textContent = lists.length;
+        stats.style.display = 'flex';
+
+        // Convert to Frappe Gantt format
+        const ganttTasks = tasksData.map(task => ({
+          id: task.id,
+          name: task.name,
+          start: task.start,
+          end: task.end,
+          progress: task.progress,
+          custom_class: task.completed ? 'bar-completed' : '',
+        }));
+
+        // Initialize Gantt chart
+        gantt = new Gantt('#gantt', ganttTasks, {
+          view_mode: 'Week',
+          date_format: 'YYYY-MM-DD',
+          custom_popup_html: null,
+          on_click: function(task) {
+            showTaskPopup(task.id);
+          },
+        });
+
+      } catch (err) {
+        loading.style.display = 'none';
+        console.error('Error loading tasks:', err);
+        noTasks.innerHTML = `<p>Error loading tasks: ${err.message}</p>`;
+        noTasks.style.display = 'block';
+      }
+    }
+
+    // Show task details popup
+    function showTaskPopup(taskId) {
+      const task = tasksData.find(t => t.id === taskId);
+      if (!task) return;
+
+      document.getElementById('popupTitle').textContent = task.name;
+      document.getElementById('popupList').textContent = task.list;
+      document.getElementById('popupStart').textContent = task.start;
+      document.getElementById('popupEnd').textContent = task.end;
+      document.getElementById('popupStatus').textContent = task.completed ? 'Completed' : 'In Progress';
+      document.getElementById('popupAssignees').textContent = task.assignees.length > 0 ? task.assignees.join(', ') : 'None';
+      document.getElementById('popupLink').href = task.url;
+
+      document.getElementById('popupOverlay').style.display = 'block';
+      document.getElementById('taskPopup').style.display = 'block';
+    }
+
+    // Close popup
+    function closePopup() {
+      document.getElementById('popupOverlay').style.display = 'none';
+      document.getElementById('taskPopup').style.display = 'none';
+    }
+
+    // Close popup on overlay click
+    document.getElementById('popupOverlay').addEventListener('click', closePopup);
+
+    // View mode buttons
+    document.querySelectorAll('.view-modes button').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.view-modes button').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        if (gantt) {
+          gantt.change_view_mode(this.dataset.mode);
+        }
+      });
+    });
+
+    // Initial load
+    loadTasks();
+  </script>
+</body>
+</html>

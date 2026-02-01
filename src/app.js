@@ -5,8 +5,14 @@ const config = require('./config');
 const passport = require('./config/passport');
 const indexRoutes = require('./routes/index');
 const authRoutes = require('./routes/auth');
+const ganttRoutes = require('./routes/gantt');
 
 const app = express();
+
+// Trust proxy for Railway (needed for secure cookies)
+if (config.nodeEnv === 'production') {
+  app.set('trust proxy', 1);
+}
 
 // View engine setup
 app.set('view engine', 'ejs');
@@ -37,6 +43,7 @@ app.use(passport.session());
 // Routes
 app.use('/', indexRoutes);
 app.use('/auth', authRoutes);
+app.use('/gantt', ganttRoutes);
 
 // 404 handler
 app.use((req, res) => {
