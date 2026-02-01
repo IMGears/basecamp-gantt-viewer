@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Basecamp Gantt Viewer</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Dashboard</h1>
+      <nav>
+        <span>Welcome, <%= user.displayName %>!</span>
+        <a href="/auth/logout" class="btn">Logout</a>
+      </nav>
+    </header>
+
+    <main>
+      <div class="card">
+        <h2>Google Account Connected</h2>
+        <p>Email: <%= user.email %></p>
+      </div>
+
+      <div class="card">
+        <h2>Connect Basecamp</h2>
+        <% if (user.basecampAccessToken) { %>
+          <p>Basecamp is connected!</p>
+          <a href="/gantt" class="btn btn-primary">View Gantt Chart</a>
+        <% } else { %>
+          <p>Connect your Basecamp account to view tasks as a Gantt chart.</p>
+          <a href="/auth/basecamp" class="btn btn-primary">Connect Basecamp</a>
+        <% } %>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
