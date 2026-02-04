@@ -5,8 +5,8 @@ async function showProjectSelect(req, res) {
   try {
     const accounts = req.user.basecampAccounts || [];
 
-    // Auto-select account if only one exists
-    const accountId = accounts.length === 1 ? accounts[0].id : accounts[0]?.id;
+    // Use accountId from query string, or fall back to first account
+    const accountId = req.query.accountId || accounts[0]?.id;
 
     if (!accountId) {
       return res.render('project-select', {
