@@ -9,6 +9,11 @@ const ganttRoutes = require('./routes/gantt');
 
 const app = express();
 
+// Warn if using the default session secret in production
+if (config.nodeEnv === 'production' && config.sessionSecret === 'dev-secret-change-in-production') {
+  console.error('WARNING: Using default session secret in production. Set SESSION_SECRET environment variable.');
+}
+
 // Trust proxy for Railway (needed for secure cookies)
 if (config.nodeEnv === 'production') {
   app.set('trust proxy', 1);

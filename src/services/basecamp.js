@@ -62,11 +62,32 @@ function createApiClient(accessToken, accountId) {
   return client;
 }
 
+// Follow Basecamp pagination via Link headers and return all results
+async function fetchAllPages(client, url) {
+  let results = [];
+  let nextUrl = url;
+
+  while (nextUrl) {
+    const response = await client.get(nextUrl);
+    results = results.concat(response.data);
+
+    // Parse Link header for next page
+    const linkHeader = response.headers?.link;
+    if (linkHeader) {
+      const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/);
+      nextUrl = nextMatch ? nextMatch[1] : null;
+    } else {
+      nextUrl = null;
+    }
+  }
+
+  return results;
+}
+
 // Get all projects
 async function getProjects(accessToken, accountId) {
   const client = createApiClient(accessToken, accountId);
-  const response = await client.get('/projects.json');
-  return response.data;
+  return fetchAllPages(client, '/projects.json');
 }
 
 // Get project details
@@ -100,15 +121,13 @@ async function getTodoLists(accessToken, accountId, projectId) {
     return [];
   }
 
-  const response = await client.get(`/buckets/${projectId}/todosets/${todoset.id}/todolists.json`);
-  return response.data;
+  return fetchAllPages(client, `/buckets/${projectId}/todosets/${todoset.id}/todolists.json`);
 }
 
 // Get all to-dos in a list
 async function getTodos(accessToken, accountId, projectId, todoListId) {
   const client = createApiClient(accessToken, accountId);
-  const response = await client.get(`/buckets/${projectId}/todolists/${todoListId}/todos.json`);
-  return response.data;
+  return fetchAllPages(client, `/buckets/${projectId}/todolists/${todoListId}/todos.json`);
 }
 
 // Get tasks for a specific project formatted for Gantt chart
@@ -119,9 +138,15 @@ async function getProjectTasksForGantt(accessToken, accountId, projectId) {
   try {
     const todoLists = await getTodoLists(accessToken, accountId, projectId);
 
-    for (const list of todoLists) {
-      const todos = await getTodos(accessToken, accountId, projectId, list.id);
+    // Fetch all todo lists in parallel instead of sequentially
+    const todoResults = await Promise.all(
+      todoLists.map(async (list) => {
+        const todos = await getTodos(accessToken, accountId, projectId, list.id);
+        return { list, todos };
+      })
+    );
 
+    for (const { list, todos } of todoResults) {
       for (const todo of todos) {
         // Only include tasks with dates for Gantt display
         if (todo.starts_on || todo.due_on) {
