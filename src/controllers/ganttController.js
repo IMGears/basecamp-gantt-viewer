@@ -70,11 +70,31 @@ async function showGantt(req, res) {
   }
 }
 
+// Attempt to refresh the Basecamp token and update the session.
+// Returns the new access token, or null if refresh fails.
+async function tryRefreshToken(req) {
+  const refreshToken = req.user.basecampRefreshToken;
+  if (!refreshToken) return null;
+
+  try {
+    const tokenData = await basecampService.refreshAccessToken(refreshToken);
+    req.user.basecampAccessToken = tokenData.access_token;
+    if (tokenData.refresh_token) {
+      req.user.basecampRefreshToken = tokenData.refresh_token;
+    }
+    req.session.passport.user = req.user;
+    return tokenData.access_token;
+  } catch (refreshErr) {
+    console.error('Token refresh failed:', refreshErr.message);
+    return null;
+  }
+}
+
 // API endpoint to fetch tasks for a specific project
 async function getTasks(req, res) {
   try {
     const { accountId, projectId } = req.params;
-    const accessToken = req.user.basecampAccessToken;
+    let accessToken = req.user.basecampAccessToken;
 
     if (!accessToken) {
       return res.status(401).json({ error: 'Basecamp not connected' });
@@ -86,8 +106,18 @@ async function getTasks(req, res) {
   } catch (err) {
     console.error('Fetch tasks error:', err.response?.data || err.message);
 
-    // Handle token expiry
+    // Handle token expiry by attempting a refresh
     if (err.response?.status === 401) {
+      const newToken = await tryRefreshToken(req);
+      if (newToken) {
+        try {
+          const { accountId, projectId } = req.params;
+          const tasks = await basecampService.getProjectTasksForGantt(newToken, accountId, projectId);
+          return res.json({ tasks });
+        } catch (retryErr) {
+          console.error('Retry after refresh failed:', retryErr.message);
+        }
+      }
       return res.status(401).json({ error: 'Token expired. Please reconnect Basecamp.' });
     }
 
@@ -110,6 +140,21 @@ async function getProjects(req, res) {
     res.json({ projects });
   } catch (err) {
     console.error('Fetch projects error:', err.response?.data || err.message);
+
+    if (err.response?.status === 401) {
+      const newToken = await tryRefreshToken(req);
+      if (newToken) {
+        try {
+          const { accountId } = req.params;
+          const projects = await basecampService.getProjects(newToken, accountId);
+          return res.json({ projects });
+        } catch (retryErr) {
+          console.error('Retry after refresh failed:', retryErr.message);
+        }
+      }
+      return res.status(401).json({ error: 'Token expired. Please reconnect Basecamp.' });
+    }
+
     res.status(500).json({ error: 'Failed to fetch projects' });
   }
 }
