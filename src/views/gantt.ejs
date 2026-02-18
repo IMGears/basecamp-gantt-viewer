@@ -447,6 +447,63 @@
       color: #475569;
     }
 
+    /* Edit form */
+    .edit-input {
+      flex: 1;
+      padding: 6px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      color: #1e293b;
+      background: #fff;
+      font-family: inherit;
+      min-width: 0;
+    }
+
+    .edit-input:focus {
+      outline: none;
+      border-color: #4e79a7;
+      box-shadow: 0 0 0 2px rgba(78, 121, 167, 0.15);
+    }
+
+    .edit-checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.9rem;
+      color: #475569;
+      cursor: pointer;
+    }
+
+    .edit-checkbox-label input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+      accent-color: #4e79a7;
+    }
+
+    .edit-error {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #dc2626;
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      margin-top: 8px;
+    }
+
+    .popup-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 18px;
+      align-items: center;
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     /* Header nav buttons */
     header nav .btn {
       padding: 8px 16px;
@@ -525,13 +582,49 @@
   <div id="popupOverlay" class="popup-overlay" style="display: none;"></div>
   <div id="taskPopup" class="task-popup" style="display: none;">
     <button class="popup-close" onclick="closePopup()">&times;</button>
-    <h3 id="popupTitle"></h3>
-    <div class="detail-row"><span class="label">List</span> <span id="popupList"></span></div>
-    <div class="detail-row"><span class="label">Start</span> <span id="popupStart"></span></div>
-    <div class="detail-row"><span class="label">End</span> <span id="popupEnd"></span></div>
-    <div class="detail-row"><span class="label">Status</span> <span id="popupStatus"></span></div>
-    <div class="detail-row"><span class="label">Assignees</span> <span id="popupAssignees"></span></div>
-    <a id="popupLink" href="#" target="_blank" class="btn btn-primary" style="margin-top: 15px;">Open in Basecamp</a>
+
+    <!-- VIEW MODE -->
+    <div id="popupViewMode">
+      <h3 id="popupTitle"></h3>
+      <div class="detail-row"><span class="label">List</span> <span id="popupList"></span></div>
+      <div class="detail-row"><span class="label">Start</span> <span id="popupStart"></span></div>
+      <div class="detail-row"><span class="label">End</span> <span id="popupEnd"></span></div>
+      <div class="detail-row"><span class="label">Status</span> <span id="popupStatus"></span></div>
+      <div class="detail-row"><span class="label">Assignees</span> <span id="popupAssignees"></span></div>
+      <div class="popup-actions">
+        <a id="popupLink" href="#" target="_blank" class="btn btn-primary">Open in Basecamp</a>
+        <button class="btn" onclick="enterEditMode()">Edit</button>
+      </div>
+    </div>
+
+    <!-- EDIT MODE -->
+    <div id="popupEditMode" style="display: none;">
+      <div class="detail-row">
+        <label class="label" for="editName">Name</label>
+        <input type="text" id="editName" class="edit-input" />
+      </div>
+      <div class="detail-row"><span class="label">List</span> <span id="popupListEdit"></span></div>
+      <div class="detail-row">
+        <label class="label" for="editStart">Start</label>
+        <input type="date" id="editStart" class="edit-input" />
+      </div>
+      <div class="detail-row">
+        <label class="label" for="editEnd">End</label>
+        <input type="date" id="editEnd" class="edit-input" />
+      </div>
+      <div class="detail-row">
+        <span class="label">Status</span>
+        <label class="edit-checkbox-label">
+          <input type="checkbox" id="editCompleted" />
+          Mark as completed
+        </label>
+      </div>
+      <div id="editErrorMsg" class="edit-error" style="display: none;"></div>
+      <div class="popup-actions">
+        <button id="popupSaveBtn" class="btn btn-primary" onclick="saveTask()">Save</button>
+        <button class="btn" onclick="exitEditMode()">Cancel</button>
+      </div>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/frappe-gantt@0.6.1/dist/frappe-gantt.min.js"></script>
@@ -540,6 +633,7 @@
     let tasksData = [];
     let orderedList = [];
     let colorMap = {};
+    let currentEditTaskId = null;
     const accountId = '<%= accountId %>';
     const projectId = '<%= projectId %>';
 
@@ -825,19 +919,159 @@
       var task = tasksData.find(function(t) { return t.id === taskId; });
       if (!task) return;
 
+      currentEditTaskId = taskId;
+
       var dotColor = colorMap[task.list] || '#94a3b8';
 
       document.getElementById('popupTitle').textContent = task.name;
       document.getElementById('popupList').innerHTML =
         '<span style="display:inline-block;width:8px;height:8px;border-radius:2px;background:' + dotColor + ';margin-right:6px;vertical-align:middle;"></span>' + escapeHtml(task.list);
-      document.getElementById('popupStart').textContent = task.start;
-      document.getElementById('popupEnd').textContent = task.end;
+      document.getElementById('popupStart').textContent = task.start || '—';
+      document.getElementById('popupEnd').textContent = task.end || '—';
       document.getElementById('popupStatus').textContent = task.completed ? 'Completed' : 'In Progress';
-      document.getElementById('popupAssignees').textContent = task.assignees.length > 0 ? task.assignees.join(', ') : 'None';
+      document.getElementById('popupAssignees').textContent =
+        task.assignees.length > 0 ? task.assignees.map(function(a) { return a.name; }).join(', ') : 'None';
       document.getElementById('popupLink').href = task.url;
+
+      // Always show view mode when opening
+      document.getElementById('popupViewMode').style.display = 'block';
+      document.getElementById('popupEditMode').style.display = 'none';
 
       document.getElementById('popupOverlay').style.display = 'block';
       document.getElementById('taskPopup').style.display = 'block';
+    }
+
+    // Enter edit mode
+    function enterEditMode() {
+      var task = tasksData.find(function(t) { return t.id === currentEditTaskId; });
+      if (!task) return;
+
+      document.getElementById('editName').value = task.name;
+      document.getElementById('popupListEdit').textContent = task.list;
+      document.getElementById('editStart').value = task.start || '';
+      document.getElementById('editEnd').value = task.end || '';
+      document.getElementById('editCompleted').checked = task.completed;
+      document.getElementById('editErrorMsg').style.display = 'none';
+
+      document.getElementById('popupViewMode').style.display = 'none';
+      document.getElementById('popupEditMode').style.display = 'block';
+
+      document.getElementById('editName').focus();
+    }
+
+    // Exit edit mode back to view
+    function exitEditMode() {
+      document.getElementById('popupViewMode').style.display = 'block';
+      document.getElementById('popupEditMode').style.display = 'none';
+      document.getElementById('editErrorMsg').style.display = 'none';
+    }
+
+    // Save task edits to Basecamp
+    async function saveTask() {
+      var task = tasksData.find(function(t) { return t.id === currentEditTaskId; });
+      if (!task) return;
+
+      var newName = document.getElementById('editName').value.trim();
+      var newStart = document.getElementById('editStart').value || null;
+      var newEnd = document.getElementById('editEnd').value || null;
+      var newCompleted = document.getElementById('editCompleted').checked;
+
+      if (!newName) {
+        showEditError('Task name cannot be empty.');
+        return;
+      }
+
+      // Build payload of only changed fields
+      var payload = {};
+      if (newName !== task.name) payload.content = newName;
+      if (newStart !== task.start) payload.starts_on = newStart;
+      if (newEnd !== task.end) payload.due_on = newEnd;
+      if (newCompleted !== task.completed) payload.completed = newCompleted;
+
+      if (Object.keys(payload).length === 0) {
+        exitEditMode();
+        return;
+      }
+
+      var saveBtn = document.getElementById('popupSaveBtn');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+      document.getElementById('editErrorMsg').style.display = 'none';
+
+      try {
+        var response = await fetch(
+          '/gantt/api/tasks/' + accountId + '/' + projectId + '/' + task.id,
+          {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          }
+        );
+
+        var data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Save failed');
+        }
+
+        // Update local cache
+        if (payload.content !== undefined) task.name = newName;
+        if (payload.starts_on !== undefined) task.start = newStart;
+        if (payload.due_on !== undefined) task.end = newEnd;
+        if (payload.completed !== undefined) {
+          task.completed = newCompleted;
+          task.progress = newCompleted ? 100 : 0;
+        }
+
+        exitEditMode();
+        showTaskPopup(task.id);
+        refreshGantt();
+
+      } catch (err) {
+        showEditError(err.message || 'Failed to save. Please try again.');
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save';
+      }
+    }
+
+    function showEditError(message) {
+      var errEl = document.getElementById('editErrorMsg');
+      errEl.textContent = message;
+      errEl.style.display = 'block';
+    }
+
+    // Rebuild the Gantt chart from the local tasksData cache (no network call)
+    function refreshGantt() {
+      if (!gantt) return;
+
+      orderedList = buildOrderedTaskList(tasksData, colorMap);
+      var ganttTasks = toGanttTasks(orderedList);
+      var activeMode = document.querySelector('.view-modes button.active');
+      var viewMode = activeMode ? activeMode.dataset.mode : 'Week';
+
+      gantt = new Gantt('#gantt', ganttTasks, {
+        view_mode: viewMode,
+        date_format: 'YYYY-MM-DD',
+        custom_popup_html: null,
+        on_click: function(task) {
+          if (task.id.startsWith('group-')) return;
+          showTaskPopup(task.id);
+        },
+      });
+
+      setTimeout(function() {
+        alignHeaderHeight();
+        colorizeGanttBars(orderedList);
+        setupScrollSync();
+      }, 250);
+
+      buildLeftPanel(orderedList);
+
+      // Update stats
+      var completed = tasksData.filter(function(t) { return t.completed; }).length;
+      document.getElementById('completedTasks').textContent = completed;
+      document.getElementById('totalTasks').textContent = tasksData.length;
     }
 
     // Close popup

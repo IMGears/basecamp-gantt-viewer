@@ -114,9 +114,53 @@ async function getProjects(req, res) {
   }
 }
 
+// API endpoint to update a specific task
+async function updateTask(req, res) {
+  try {
+    const { accountId, projectId, todoId } = req.params;
+    const accessToken = req.user.basecampAccessToken;
+
+    if (!accessToken) {
+      return res.status(401).json({ error: 'Basecamp not connected' });
+    }
+
+    const { content, starts_on, due_on, completed } = req.body;
+    const updateFields = {};
+
+    if (content !== undefined) {
+      if (!content.trim()) {
+        return res.status(400).json({ error: 'Task name cannot be empty' });
+      }
+      updateFields.content = content.trim();
+    }
+    if (starts_on !== undefined) updateFields.starts_on = starts_on || null;
+    if (due_on !== undefined) updateFields.due_on = due_on || null;
+
+    if (Object.keys(updateFields).length > 0) {
+      await basecampService.updateTodo(accessToken, accountId, projectId, todoId, updateFields);
+    }
+    if (completed === true) {
+      await basecampService.completeTodo(accessToken, accountId, projectId, todoId);
+    } else if (completed === false) {
+      await basecampService.uncompleteTodo(accessToken, accountId, projectId, todoId);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Update task error:', err.response?.data || err.message);
+    const status = err.response?.status;
+    if (status === 401) return res.status(401).json({ error: 'Token expired. Please reconnect Basecamp.' });
+    if (status === 403) return res.status(403).json({ error: 'You do not have permission to edit this task.' });
+    if (status === 404) return res.status(404).json({ error: 'Task not found.' });
+    if (status === 422) return res.status(422).json({ error: 'Invalid data. Check date formats (YYYY-MM-DD).' });
+    res.status(500).json({ error: 'Failed to update task' });
+  }
+}
+
 module.exports = {
   showProjectSelect,
   showGantt,
   getTasks,
   getProjects,
+  updateTask,
 };

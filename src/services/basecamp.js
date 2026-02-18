@@ -134,7 +134,7 @@ async function getProjectTasksForGantt(accessToken, accountId, projectId) {
             project: project.name,
             list: list.name,
             completed: todo.completed,
-            assignees: todo.assignees?.map(a => a.name) || [],
+            assignees: todo.assignees?.map(a => ({ id: a.id, name: a.name })) || [],
             url: todo.app_url,
           });
         }
@@ -145,6 +145,25 @@ async function getProjectTasksForGantt(accessToken, accountId, projectId) {
   }
 
   return ganttTasks;
+}
+
+// Update a todo's fields (content, starts_on, due_on, etc.)
+async function updateTodo(accessToken, accountId, projectId, todoId, fields) {
+  const client = createApiClient(accessToken, accountId);
+  const response = await client.put(`/buckets/${projectId}/todos/${todoId}.json`, fields);
+  return response.data;
+}
+
+// Mark a todo as completed
+async function completeTodo(accessToken, accountId, projectId, todoId) {
+  const client = createApiClient(accessToken, accountId);
+  await client.post(`/buckets/${projectId}/todos/${todoId}/completion.json`);
+}
+
+// Mark a todo as incomplete
+async function uncompleteTodo(accessToken, accountId, projectId, todoId) {
+  const client = createApiClient(accessToken, accountId);
+  await client.delete(`/buckets/${projectId}/todos/${todoId}/completion.json`);
 }
 
 module.exports = {
@@ -158,4 +177,7 @@ module.exports = {
   getTodoLists,
   getTodos,
   getProjectTasksForGantt,
+  updateTodo,
+  completeTodo,
+  uncompleteTodo,
 };

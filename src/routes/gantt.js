@@ -15,4 +15,7 @@ router.get('/api/tasks/:accountId/:projectId', isAuthenticated, hasBasecampAuth,
 // API: Get projects list
 router.get('/api/projects/:accountId', isAuthenticated, hasBasecampAuth, ganttController.getProjects);
 
+// API: Update a specific task
+router.put('/api/tasks/:accountId/:projectId/:todoId', isAuthenticated, hasBasecampAuth, ganttController.updateTask);
+
 module.exports = router;
